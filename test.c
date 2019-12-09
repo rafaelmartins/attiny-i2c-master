@@ -20,11 +20,11 @@ main(void)
     uint8_t a;
     while (true) {
         for (uint8_t i = 0; i < 10; i++) {
-            i2c_master_write_data(0x20, 0x00, &i, 1);
+            i2c_master_write(0x20, 0x00, &i, 1);
             _delay_ms(1000);
-            if (i2c_master_read_data(0x20, 0x00, &a, 1)) {
+            if (i2c_master_read(0x20, 0x00, &a, 1)) {
                 a = 9 - a;
-                i2c_master_write_data(0x20, 0x00, &a, 1);
+                i2c_master_write(0x20, 0x00, &a, 1);
                 _delay_ms(1000);
             }
         }

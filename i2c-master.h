@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -52,5 +53,15 @@
 #endif
 
 void i2c_master_init();
-bool i2c_master_write_data(uint8_t slave_address, uint8_t reg_address, uint8_t *data, size_t data_len);
-bool i2c_master_read_data(uint8_t slave_address, uint8_t reg_address, uint8_t *data, size_t data_len);
+
+#ifdef I2C_LOW_LEVEL_API
+#   define _I2C_LL
+bool i2c_master_start_condition(void);
+bool i2c_master_stop_condition(void);
+bool i2c_master_write_byte(uint8_t data);
+bool i2c_master_read_byte(uint8_t *data, bool last);
+#else
+#   define _I2C_LL static
+bool i2c_master_write(uint8_t slave_address, uint8_t reg_address, uint8_t *data, size_t data_len);
+bool i2c_master_read(uint8_t slave_address, uint8_t reg_address, uint8_t *data, size_t data_len);
+#endif

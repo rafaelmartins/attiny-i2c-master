@@ -7,9 +7,10 @@
  * See the file LICENSE.
  */
 
-#include <stdlib.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <avr/io.h>
 #include <util/delay.h>
 #include "i2c-master.h"
@@ -66,8 +67,8 @@ xfer(uint8_t data, bool bit)
 }
 
 
-static bool
-start_condition(void)
+_I2C_LL bool
+i2c_master_start_condition(void)
 {
     PORT_I2C |= (1 << SCL_I2C);
     while ((PIN_I2C & (1 << SCL_I2C)) == 0);
@@ -81,8 +82,8 @@ start_condition(void)
 }
 
 
-static bool
-stop_condition(void)
+_I2C_LL bool
+i2c_master_stop_condition(void)
 {
     PORT_I2C &= ~(1 << SDA_I2C);
     PORT_I2C |= (1 << SCL_I2C);
@@ -94,8 +95,8 @@ stop_condition(void)
 }
 
 
-static bool
-write_byte(uint8_t data)
+_I2C_LL bool
+i2c_master_write_byte(uint8_t data)
 {
     PORT_I2C &= ~(1 << SCL_I2C);
     while ((PIN_I2C & (1 << SCL_I2C)) != 0);
@@ -105,8 +106,8 @@ write_byte(uint8_t data)
 }
 
 
-static uint8_t
-read_byte(uint8_t *data, bool last)
+_I2C_LL bool
+i2c_master_read_byte(uint8_t *data, bool last)
 {
     DDR_I2C &= ~(1 << SDA_I2C);
     *data = xfer(0xff, false);
@@ -114,55 +115,57 @@ read_byte(uint8_t *data, bool last)
 }
 
 
+#ifndef I2C_LOW_LEVEL_API
+
 bool
-i2c_master_write_data(uint8_t slave_address, uint8_t reg_address, uint8_t *data, size_t data_len)
+i2c_master_write(uint8_t slave_address, uint8_t reg_address, uint8_t *data, size_t data_len)
 {
-    if (!start_condition()) {
+    if (!i2c_master_start_condition()) {
         return false;
     }
 
-    if (!write_byte(slave_address << 1)) {
+    if (!i2c_master_write_byte(slave_address << 1)) {
         return false;
     }
 
-    if (!write_byte(reg_address)) {
+    if (!i2c_master_write_byte(reg_address)) {
+        return false;
+    }
+
+    for (size_t i = 0; i < data_len; i++) {
+        if (!i2c_master_write_byte(data[i])) {
+            return false;
+        }
+    }
+
+    return i2c_master_stop_condition();
+}
+
+
+bool
+i2c_master_read(uint8_t slave_address, uint8_t reg_address, uint8_t *data, size_t data_len)
+{
+    if (!i2c_master_write(slave_address, reg_address, NULL, 0)) {
+        return false;
+    }
+
+    if (!i2c_master_start_condition()) {
+        return false;
+    }
+
+    if (!i2c_master_write_byte((slave_address << 1) | (1 << 0))) {
         return false;
     }
 
     if (data != NULL) {
         for (size_t i = 0; i < data_len; i++) {
-            if (!write_byte(data[i])) {
+            if (!i2c_master_read_byte(&(data[i]), data_len - i == 1)) {
                 return false;
             }
         }
     }
 
-    return stop_condition();
+    return i2c_master_stop_condition();
 }
 
-
-bool
-i2c_master_read_data(uint8_t slave_address, uint8_t reg_address, uint8_t *data, size_t data_len)
-{
-    if (!i2c_master_write_data(slave_address, reg_address, NULL, 0)) {
-        return false;
-    }
-
-    if (!start_condition()) {
-        return false;
-    }
-
-    if (!write_byte((slave_address << 1) | (1 << 0))) {
-        return false;
-    }
-
-    if (data != NULL) {
-        for (size_t i = 0; i < data_len; i++) {
-            if (!read_byte(&(data[i]), data_len - i == 1)) {
-                return false;
-            }
-        }
-    }
-
-    return stop_condition();
-}
+#endif
